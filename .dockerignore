@@ -1,0 +1,13 @@
+.git
+.github
+*.md
+*.log
+.env
+.env.*
+**/.gradle
+**/build
+**/local.properties
+**/captures
+**/.idea
+**/*.iml
+**/node_modules

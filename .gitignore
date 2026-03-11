@@ -1,0 +1,25 @@
+# Android Studio project artifacts (if any are generated locally)
+.idea/
+*.iml
+local.properties
+.gradle/
+build/
+captures/
+
+# Secrets — never commit
+.env
+.env.*
+secrets/
+
+# OS noise
+.DS_Store
+Thumbs.db
+*~
+
+# Logs
+*.log
+logs/
+
+# Docker build artifacts
+*.tar.gz
+*.zip
