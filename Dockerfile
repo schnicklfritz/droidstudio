@@ -1,5 +1,7 @@
 FROM schnicklbob/ubuntudesk:latest
 
+USER root
+
 ENV ANDROID_STUDIO_VERSION=2025.3.2.22
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
