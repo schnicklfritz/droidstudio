@@ -2,43 +2,59 @@ FROM schnicklbob/ubuntudesk:latest
 
 USER root
 
-ENV ANDROID_STUDIO_VERSION=2025.3.2.22
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV STUDIO_HOME=/opt/android-studio
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/35.0.0
 
-# Dependencies for Android Studio on 64-bit Linux
-RUN apt-get update && apt-get install -y \
+# Create developer user
+RUN id -u developer &>/dev/null || useradd -m -s /bin/bash developer \
+  && mkdir -p ${ANDROID_HOME} \
+  && chown -R developer:developer ${ANDROID_HOME}
+
+# Ubuntu 24.04 (Noble): enable i386 multiarch then install deps
+# libncurses5:i386 does not exist in Noble — use libncurses6:i386
+RUN dpkg --add-architecture i386 \
+  && apt-get update && apt-get install -y \
+    libc6:i386 \
+    libncurses6:i386 \
+    libstdc++6:i386 \
     lib32z1 \
-    lib32stdc++6 \
-    libc6-i386 \
-    lib32ncurses6 \
+    libbz2-1.0:i386 \
     libxtst6 \
     libxi6 \
     libxrender1 \
-    libfreetype6 \
     fontconfig \
     unzip \
     wget \
     curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Android Studio
-RUN wget -q "https://redirector.gvt1.com/edgedl/android/studio/ide-zips/${ANDROID_STUDIO_VERSION}/android-studio-${ANDROID_STUDIO_VERSION}-linux.tar.gz" \
+# Download Android Studio — URL confirmed from user + version confirmed 2025.3.2.6
+# Get SHA256 from developer.android.com/studio downloads table before building
+ARG AS_SHA256
+RUN wget -q "https://edgedl.me.gvt1.com/android/studio/ide-zips/2025.3.2.6/android-studio-panda2-linux.tar.gz" \
       -O /tmp/android-studio.tar.gz \
+  && if [ -n "${AS_SHA256}" ]; then \
+       echo "${AS_SHA256}  /tmp/android-studio.tar.gz" | sha256sum -c - ; \
+     fi \
   && tar -xzf /tmp/android-studio.tar.gz -C /opt/ \
   && rm /tmp/android-studio.tar.gz \
-  && ln -sf /opt/android-studio/bin/studio.sh /usr/local/bin/android-studio
+  && chown -R developer:developer ${STUDIO_HOME} \
+  && ln -sf ${STUDIO_HOME}/bin/studio.sh /usr/local/bin/android-studio
 
-# Install Android SDK command-line tools
-RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
-  && wget -q "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
+# Install SDK command-line tools
+RUN wget -q "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
       -O /tmp/cmdline-tools.zip \
-  && unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-extract \
-  && mv /tmp/cmdline-tools-extract/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
-  && rm -rf /tmp/cmdline-tools.zip /tmp/cmdline-tools-extract
+  && unzip -q /tmp/cmdline-tools.zip -d /tmp/ct \
+  && mkdir -p ${ANDROID_HOME}/cmdline-tools \
+  && mv /tmp/ct/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+  && rm -rf /tmp/cmdline-tools.zip /tmp/ct \
+  && chown -R developer:developer ${ANDROID_HOME}
 
-# Accept licenses and install SDK platforms + build tools
+# Everything below runs as developer
+USER developer
+
 RUN yes | sdkmanager --licenses > /dev/null 2>&1 \
   && sdkmanager \
     "platform-tools" \
@@ -47,8 +63,7 @@ RUN yes | sdkmanager --licenses > /dev/null 2>&1 \
     "build-tools;35.0.0" \
     "sources;android-35"
 
-# Tune Android Studio JVM for available RAM (8GB heap ceiling)
-RUN cat > /opt/android-studio/bin/studio64.vmoptions <<'EOF'
+RUN cat > ${STUDIO_HOME}/bin/studio64.vmoptions <<'EOF'
 -Xms1024m
 -Xmx8192m
 -XX:+UseG1GC
@@ -58,9 +73,8 @@ RUN cat > /opt/android-studio/bin/studio64.vmoptions <<'EOF'
 -Dfile.encoding=UTF-8
 EOF
 
-# Desktop shortcut for noVNC session
-RUN mkdir -p /root/Desktop \
-  && cat > /root/Desktop/android-studio.desktop <<'EOF'
+RUN mkdir -p /home/developer/Desktop \
+  && cat > /home/developer/Desktop/android-studio.desktop <<'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -70,6 +84,6 @@ Icon=/opt/android-studio/bin/studio.png
 Terminal=false
 Categories=Development;IDE;
 EOF
-RUN chmod +x /root/Desktop/android-studio.desktop
+RUN chmod +x /home/developer/Desktop/android-studio.desktop
 
-WORKDIR /root
+WORKDIR /home/developer
