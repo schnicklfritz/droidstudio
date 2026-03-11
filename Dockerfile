@@ -8,7 +8,7 @@ ENV STUDIO_HOME=/opt/android-studio
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/35.0.0
 
 # Create developer user
-RUN id -u developer &>/dev/null || useradd -m -s /bin/bash developer \
+RUN useradd -m -s /bin/bash developer \
   && mkdir -p ${ANDROID_HOME} \
   && chown -R developer:developer ${ANDROID_HOME}
 
